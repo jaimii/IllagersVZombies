@@ -23,11 +23,24 @@ import org.bukkit.craftbukkit.entity.CraftWitch;
 
 import org.bukkit.potion.PotionEffectType;
 
+import org.bukkit.entity.Creeper;
+import org.bukkit.entity.Snowball;
+import org.bukkit.entity.Snowman;
+
+import org.bukkit.entity.IronGolem;
+import org.bukkit.craftbukkit.entity.CraftIronGolem;
+
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntitySpawnEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityTargetEvent;
+import org.bukkit.event.entity.EntityDeathEvent;
 
 public class MobAIListener implements Listener {
+
+    private final java.util.Map<java.util.UUID, Integer> snowmanHits = new java.util.HashMap<>();
+    private final java.util.Map<java.util.UUID, java.util.UUID> creeperTargets = new java.util.HashMap<>();
 
     @EventHandler
     public void onMobSpawn(EntitySpawnEvent event) {
@@ -112,7 +125,7 @@ public class MobAIListener implements Listener {
             nmsPiglin.goalSelector.addGoal(2, new MeleeAttackGoal(nmsPiglin, 1.0D, true));
         }
 
-// 6. Handle PIGLIN BRUTES
+        // 6. Handle PIGLIN BRUTES
         else if (event.getEntity() instanceof org.bukkit.entity.PiglinBrute bBrute) {
             bBrute.setImmuneToZombification(true);
             PiglinBrute nmsBrute = ((CraftPiglinBrute) bBrute).getHandle();
@@ -128,22 +141,30 @@ public class MobAIListener implements Listener {
 
             nmsBrute.goalSelector.addGoal(2, new MeleeAttackGoal(nmsBrute, 1.0D, true));
         }
+
+        // 7. Handle IRON GOLEMS
+        else if (event.getEntity() instanceof org.bukkit.entity.IronGolem bGolem) {
+            net.minecraft.world.entity.animal.golem.IronGolem nmsGolem = ((CraftIronGolem) bGolem).getHandle();
+
+            nmsGolem.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(
+                    nmsGolem,
+                    net.minecraft.world.entity.monster.Creeper.class,
+                    true
+            ));
+        }
     }
+    // 8. Special WITCH attack On Zombies
     @EventHandler
     public void onWitchThrow(org.bukkit.event.entity.ProjectileLaunchEvent event) {
-        // Check if a Witch is throwing a potion
         if (event.getEntity() instanceof org.bukkit.entity.ThrownPotion potion &&
                 event.getEntity().getShooter() instanceof org.bukkit.entity.Witch witch) {
 
-            // Get the Witch's current target
             org.bukkit.entity.LivingEntity target = witch.getTarget();
 
-            // If the target is a Zombie, force the potion to be Instant Health
             if (target instanceof org.bukkit.entity.Zombie) {
                 org.bukkit.inventory.ItemStack healthPotion = new org.bukkit.inventory.ItemStack(org.bukkit.Material.SPLASH_POTION);
                 org.bukkit.inventory.meta.PotionMeta meta = (org.bukkit.inventory.meta.PotionMeta) healthPotion.getItemMeta();
 
-                // Set to Instant Health II (Strong)
                 meta.setBasePotionType(org.bukkit.potion.PotionType.STRONG_HEALING);
                 meta.addCustomEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.INSTANT_HEALTH, 1, 1), true);
 
@@ -151,5 +172,63 @@ public class MobAIListener implements Listener {
                 potion.setItem(healthPotion);
             }
         }
+    }
+    // 9. Handle CREEPERS and SNOW GOLEMS
+    @EventHandler
+    public void onCreeperDamageBySnowman(EntityDamageByEntityEvent event) {
+        if (event.getEntity() instanceof Creeper creeper) {
+            if (event.getDamager() instanceof Snowball snowball && snowball.getShooter() instanceof Snowman snowman) {
+                java.util.UUID creeperId = creeper.getUniqueId();
+                int hits = snowmanHits.getOrDefault(creeperId, 0) + 1;
+
+                if (hits >= 3) {
+                    snowmanHits.remove(creeperId);
+                    creeperTargets.put(creeperId, snowman.getUniqueId());
+                    creeper.setTarget(snowman);
+                } else {
+                    snowmanHits.put(creeperId, hits);
+                }
+            }
+        }
+    }
+
+    @EventHandler
+    public void onCreeperTarget(EntityTargetEvent event) {
+        if (event.getEntity() instanceof Creeper creeper) {
+            java.util.UUID creeperId = creeper.getUniqueId();
+            if (creeperTargets.containsKey(creeperId)) {
+                java.util.UUID snowmanId = creeperTargets.get(creeperId);
+                org.bukkit.entity.Entity snowman = org.bukkit.Bukkit.getEntity(snowmanId);
+
+                if (snowman != null && snowman.isValid() && !snowman.isDead()) {
+                    if (creeper.getLocation().distanceSquared(snowman.getLocation()) <= 1024.0) {
+                        if (event.getTarget() == null || !event.getTarget().getUniqueId().equals(snowmanId)) {
+                            event.setTarget(snowman);
+                        }
+                    } else {
+                        creeperTargets.remove(creeperId);
+                    }
+                } else {
+                    creeperTargets.remove(creeperId);
+                }
+            }
+        }
+    }
+
+    @EventHandler
+    public void onIronGolemHitCreeper(EntityDamageByEntityEvent event) {
+        // Intercept when an Iron Golem strikes a Creeper
+        if (event.getEntity() instanceof Creeper && event.getDamager() instanceof IronGolem) {
+            // Apply lethal damage to ensure instant elimination upon target contact
+            event.setDamage(Double.MAX_VALUE);
+        }
+    }
+
+    @EventHandler
+    public void onEntityDeath(EntityDeathEvent event) {
+        java.util.UUID uuid = event.getEntity().getUniqueId();
+        snowmanHits.remove(uuid);
+        creeperTargets.remove(uuid);
+        creeperTargets.values().removeIf(targetId -> targetId.equals(uuid));
     }
 }
