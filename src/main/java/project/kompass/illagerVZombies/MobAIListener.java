@@ -27,6 +27,7 @@ import org.bukkit.craftbukkit.entity.CraftWitch;
 import org.bukkit.craftbukkit.entity.CraftIronGolem;
 import org.bukkit.craftbukkit.entity.CraftCreeper;
 
+import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
 import org.bukkit.entity.Creeper;
@@ -44,6 +45,7 @@ import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.ProjectileLaunchEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityPotionEffectEvent;
 
 public class MobAIListener implements Listener {
 
@@ -225,7 +227,7 @@ public class MobAIListener implements Listener {
                 java.util.UUID creeperId = creeper.getUniqueId();
                 int hits = snowmanHits.getOrDefault(creeperId, 0) + 1;
 
-                if (hits >= 3) {
+                if (hits >= 1) {
                     snowmanHits.remove(creeperId);
                     creeperTargets.put(creeperId, snowman.getUniqueId());
                     creeper.setTarget(snowman);
@@ -300,8 +302,6 @@ public class MobAIListener implements Listener {
         }
     }
 
-    // --- IMPLEMENTATION OF SKELETON & ILLAGER FRIENDLY-FIRE / PASS-THROUGH ---
-
     // 13. Prevent friendly fire damage (melee or projectiles) between Skeletons, and between Illusioners and Pillagers
     @EventHandler
     public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
@@ -349,7 +349,7 @@ public class MobAIListener implements Listener {
         }
     }
 
-    // 15. Handle Projectile pass-through on collision
+    // 15. Handle Projectiles
     @EventHandler
     public void onProjectileHitFriendly(ProjectileHitEvent event) {
         if (event.getHitEntity() == null) return;
@@ -366,10 +366,58 @@ public class MobAIListener implements Listener {
             return;
         }
 
-        // Illusioner and Pillager projectiles pass-through all raiders (including Witches)
+        // Illusioner and Pillager projectiles do not damage all raiders (including Witches)
         if (isIllusionerOrPillager(shooterEntity) && isRaiderOrWitch(hitEntity)) {
             event.setCancelled(true);
             return;
+        }
+    }
+
+    // 16. Illusioner spell adjustment: intercept blindness potion effect
+    @EventHandler
+    public void onEntityPotionEffect(EntityPotionEffectEvent event) {
+        if (event.getEntity() instanceof org.bukkit.entity.Player player) {
+            // Check if blindness is being applied/changed
+            if (event.getModifiedType() == PotionEffectType.BLINDNESS) {
+                if (event.getAction() == EntityPotionEffectEvent.Action.ADDED || event.getAction() == EntityPotionEffectEvent.Action.CHANGED) {
+                    PotionEffect newEffect = event.getNewEffect();
+                    // Vanilla Illusioner blindness spell has a duration of 400 ticks (20 seconds) and Cause is ATTACK
+                    if (newEffect != null && newEffect.getDuration() == 400 && event.getCause() == EntityPotionEffectEvent.Cause.ATTACK) {
+
+                        // Verify if there is an Illusioner within 30 blocks of the player
+                        boolean nearbyIllusioner = player.getNearbyEntities(30.0, 30.0, 30.0).stream()
+                                .anyMatch(entity -> entity instanceof org.bukkit.entity.Illusioner);
+
+                        if (nearbyIllusioner) {
+                            event.setCancelled(true);
+
+                            // 1. Instantly apply Blindness for 3 seconds (60 ticks)
+                            player.addPotionEffect(new PotionEffect(
+                                    PotionEffectType.BLINDNESS,
+                                    60,
+                                    0,
+                                    false,
+                                    true,
+                                    true
+                            ));
+
+                            // 2. Schedule Darkness for 10 seconds (200 ticks) after the 3 seconds elapse (60 ticks later)
+                            org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                                if (player.isOnline() && !player.isDead()) {
+                                    player.addPotionEffect(new PotionEffect(
+                                            PotionEffectType.DARKNESS,
+                                            200,
+                                            0,
+                                            false,
+                                            true,
+                                            true
+                                    ));
+                                }
+                            }, 60L);
+                        }
+                    }
+                }
+            }
         }
     }
 
