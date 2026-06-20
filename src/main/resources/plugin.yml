@@ -2,5 +2,7 @@ name: IllagerVZombies
 version: 1.2
 main: project.kompass.illagerVZombies.IllagerVZombies
 api-version: '1.21'
+author: JustJaimii
+description: 'AI Improvements For Mobs. Designed For Project Kompass'
 libraries:
   - org.jetbrains.kotlin:kotlin-stdlib:2.1.0
