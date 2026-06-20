@@ -1,4 +1,4 @@
-package project.kompass.illagerVZombies
+package project.kompass.illagerVZombies.listener
 
 import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraft.world.entity.ai.goal.AvoidEntityGoal
@@ -10,7 +10,6 @@ import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal
 import net.minecraft.world.entity.ai.memory.MemoryModuleType
 import net.minecraft.world.entity.monster.Giant as NmsGiant
 import net.minecraft.world.entity.monster.Witch as NmsWitch
-import net.minecraft.world.entity.monster.Creeper as NmsCreeper
 import net.minecraft.world.entity.monster.warden.Warden
 import net.minecraft.world.entity.monster.zombie.Zombie as NmsZombie
 import net.minecraft.world.entity.raid.Raider as NmsRaider
@@ -20,7 +19,6 @@ import net.minecraft.world.entity.animal.golem.IronGolem as NmsIronGolem
 
 import org.bukkit.craftbukkit.entity.CraftCreeper
 import org.bukkit.craftbukkit.entity.CraftGiant
-import org.bukkit.craftbukkit.entity.CraftIronGolem
 import org.bukkit.craftbukkit.entity.CraftPiglin
 import org.bukkit.craftbukkit.entity.CraftPiglinBrute
 import org.bukkit.craftbukkit.entity.CraftRaider
@@ -29,7 +27,6 @@ import org.bukkit.craftbukkit.entity.CraftZombie
 
 import org.bukkit.entity.Creeper as BukkitCreeper
 import org.bukkit.entity.Giant as BukkitGiant
-import org.bukkit.entity.IronGolem as BukkitIronGolem
 import org.bukkit.entity.Piglin as BukkitPiglin
 import org.bukkit.entity.PiglinBrute as BukkitPiglinBrute
 import org.bukkit.entity.Raider as BukkitRaider

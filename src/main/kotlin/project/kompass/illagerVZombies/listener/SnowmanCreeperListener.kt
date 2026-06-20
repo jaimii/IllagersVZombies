@@ -1,4 +1,4 @@
-package project.kompass.illagerVZombies
+package project.kompass.illagerVZombies.listener
 
 import org.bukkit.Bukkit
 import org.bukkit.NamespacedKey

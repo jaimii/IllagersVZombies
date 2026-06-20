@@ -1,4 +1,4 @@
-package project.kompass.illagerVZombies
+package project.kompass.illagerVZombies.listener
 
 import org.bukkit.entity.AbstractSkeleton
 import org.bukkit.entity.Entity
