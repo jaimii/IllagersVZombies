@@ -10,15 +10,20 @@ import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal
 import net.minecraft.world.entity.ai.memory.MemoryModuleType
 import net.minecraft.world.entity.monster.Giant as NmsGiant
 import net.minecraft.world.entity.monster.Witch as NmsWitch
+import net.minecraft.world.entity.monster.Creeper as NmsCreeper
+import net.minecraft.world.entity.monster.skeleton.Skeleton as NmsSkeleton
+import net.minecraft.world.entity.monster.spider.Spider as NmsSpider
 import net.minecraft.world.entity.monster.warden.Warden
 import net.minecraft.world.entity.monster.zombie.Zombie as NmsZombie
 import net.minecraft.world.entity.raid.Raider as NmsRaider
 import net.minecraft.world.entity.monster.piglin.Piglin as NmsPiglin
 import net.minecraft.world.entity.monster.piglin.PiglinBrute as NmsPiglinBrute
 import net.minecraft.world.entity.animal.golem.IronGolem as NmsIronGolem
+import net.minecraft.world.entity.player.Player as NmsPlayer
 
 import org.bukkit.craftbukkit.entity.CraftCreeper
 import org.bukkit.craftbukkit.entity.CraftGiant
+import org.bukkit.craftbukkit.entity.CraftIronGolem
 import org.bukkit.craftbukkit.entity.CraftPiglin
 import org.bukkit.craftbukkit.entity.CraftPiglinBrute
 import org.bukkit.craftbukkit.entity.CraftRaider
@@ -27,6 +32,7 @@ import org.bukkit.craftbukkit.entity.CraftZombie
 
 import org.bukkit.entity.Creeper as BukkitCreeper
 import org.bukkit.entity.Giant as BukkitGiant
+import org.bukkit.entity.IronGolem as BukkitIronGolem
 import org.bukkit.entity.Piglin as BukkitPiglin
 import org.bukkit.entity.PiglinBrute as BukkitPiglinBrute
 import org.bukkit.entity.Raider as BukkitRaider
@@ -139,7 +145,25 @@ class MobSpawnListener : Listener {
             nmsBrute.goalSelector.addGoal(2, MeleeAttackGoal(nmsBrute, 1.0, true))
         }
 
-        // 7. Handle CREEPERS
+        // 7. Handle IRON GOLEMS (Native NMS Target overrides)
+        else if (entity is BukkitIronGolem) {
+            val nmsGolem = (entity as CraftIronGolem).handle
+
+            // Remove all standard NearestAttackableTargetGoals to avoid targeting conflicts
+            nmsGolem.targetSelector.removeAllGoals { goal -> goal is NearestAttackableTargetGoal<*> }
+
+            // High Priority (Priority 3) - Attacks zombies, pillagers/raiders, and hostile players natively
+            nmsGolem.targetSelector.addGoal(3, NearestAttackableTargetGoal(nmsGolem, NmsZombie::class.java, true))
+            nmsGolem.targetSelector.addGoal(3, NearestAttackableTargetGoal(nmsGolem, NmsRaider::class.java, true))
+            nmsGolem.targetSelector.addGoal(3, NearestAttackableTargetGoal(nmsGolem, NmsPlayer::class.java, true))
+
+            // Standard Priority / Equal Opportunity (Priority 4) - Targets standard threats based purely on distance
+            nmsGolem.targetSelector.addGoal(4, NearestAttackableTargetGoal(nmsGolem, NmsCreeper::class.java, true))
+            nmsGolem.targetSelector.addGoal(4, NearestAttackableTargetGoal(nmsGolem, NmsSkeleton::class.java, true))
+            nmsGolem.targetSelector.addGoal(4, NearestAttackableTargetGoal(nmsGolem, NmsSpider::class.java, true))
+        }
+
+        // 8. Handle CREEPERS
         else if (entity is BukkitCreeper) {
             val nmsCreeper = (entity as CraftCreeper).handle
 
