@@ -10,6 +10,7 @@ object Config {
     var enabledFall = true
     var enabledPointedDripstone = true
     var enabledStonecutter = true
+    var enabledIronGolem = true
     var debug = false
     var disabledWorlds = HashSet<String>()
 
@@ -21,6 +22,7 @@ object Config {
         enabledFall = config.getBoolean("enabled_fall", true)
         enabledPointedDripstone = config.getBoolean("enabled_pointed_dripstone", true)
         enabledStonecutter = config.getBoolean("enabled_stonecutter", true)
+        enabledIronGolem = config.getBoolean("enabled_iron_golem", true) // <--- Load here
         debug = config.getBoolean("debug", false)
         disabledWorlds = HashSet(config.getStringList("disabled_worlds"))
     }

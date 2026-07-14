@@ -4,6 +4,7 @@ import org.bukkit.Material
 import org.bukkit.craftbukkit.CraftWorld
 import org.bukkit.craftbukkit.entity.CraftLivingEntity
 import org.bukkit.entity.FallingBlock
+import org.bukkit.entity.IronGolem
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
@@ -23,29 +24,25 @@ class MobDeathXPListener(private val plugin: IllagerVZombies) : Listener {
     fun onEntityDeath(event: EntityDeathEvent) {
         val entity = event.entity
 
-        // Fast early exit 1: Players do not trigger custom environmental mob XP
         if (entity is Player) return
-
-        // Fast early exit 2: If the mob already drops XP (e.g. standard player/wolf kill), bypass immediately
         if (event.droppedExp > 0) return
 
-        // Fast early exit 3: Ensure there is actually a registered damage cause
         val damageEvent = entity.lastDamageCause ?: return
 
-        // Fast early exit 4: Verify the world isn't blacklisted (HashSet check is deferred here to save CPU)
         val world = entity.world
         if (Config.disabledWorlds.contains(world.name)) return
 
         val damageCause = damageEvent.cause
 
-        // Constant-time O(1) JVM lookupswitch on enum.
-        // Bypasses evaluation of config flags entirely for unmonitored death causes (e.g., ENTITY_ATTACK).
         val match = when (damageCause) {
             DamageCause.WITHER -> Config.enabledWitherRose
             DamageCause.HOT_FLOOR -> Config.enabledHotFloor
             DamageCause.CRAMMING -> Config.enabledCramming
             DamageCause.LAVA -> Config.enabledLava
             DamageCause.FALL -> Config.enabledFall
+            DamageCause.ENTITY_ATTACK -> {
+                Config.enabledIronGolem && isIronGolemKill(damageEvent)
+            }
             DamageCause.CONTACT -> {
                 (Config.enabledPointedDripstone && isPointedDripstone(damageEvent)) ||
                         (Config.enabledStonecutter && isStonecutter(damageEvent))
@@ -61,7 +58,6 @@ class MobDeathXPListener(private val plugin: IllagerVZombies) : Listener {
                 val nmsEntity = (entity as CraftLivingEntity).handle
                 val nmsServerLevel = (world as CraftWorld).handle
 
-                // Fetch default experience reward using 1.21.11 NMS
                 val exp = nmsEntity.getExperienceReward(nmsServerLevel, null)
 
                 if (Config.debug) {
@@ -77,8 +73,11 @@ class MobDeathXPListener(private val plugin: IllagerVZombies) : Listener {
         }
     }
 
+    private fun isIronGolemKill(event: EntityDamageEvent): Boolean {
+        return event is EntityDamageByEntityEvent && event.damager is IronGolem
+    }
+
     private fun isPointedDripstone(event: EntityDamageEvent): Boolean {
-        // Event type is already contextually narrowed down by the 'when' block
         return if (event is EntityDamageByBlockEvent) {
             event.damager?.type == Material.POINTED_DRIPSTONE
         } else if (event is EntityDamageByEntityEvent) {
@@ -90,7 +89,6 @@ class MobDeathXPListener(private val plugin: IllagerVZombies) : Listener {
     }
 
     private fun isStonecutter(event: EntityDamageEvent): Boolean {
-        // Event type is already contextually narrowed down by the 'when' block
         return event is EntityDamageByBlockEvent && event.damager?.type == Material.STONECUTTER
     }
 }

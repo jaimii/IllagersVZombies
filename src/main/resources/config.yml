@@ -6,6 +6,7 @@ enabled_lava: true
 enabled_fall: true
 enabled_pointed_dripstone: true
 enabled_stonecutter: true
+enabled_iron_golem: true
 
 # Enable debug logging in server console
 debug: false
